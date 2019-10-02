@@ -1,6 +1,8 @@
 import vk
 import sys
 from datetime import datetime
+import json
+
 
 class ParseItem:
   def __init__(self, id, deep, parentId):
@@ -9,13 +11,17 @@ class ParseItem:
     self.parentId = parentId
 
 class User:
-  def __init__(self, id, age, countPhoto, countVideo, countNotes, countGroups):
-    self.id = id
-    self.age = age
-    self.photo = countPhoto
-    self.countVideo = countVideo
-    self.countNotes = countNotes
-    self.countGroups = countGroups
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, 
+            sort_keys=True, indent=4)
+    
+    def __init__(self, id, age, countPhoto, countVideo, countNotes, countGroups):
+        self.id = id
+        self.age = age
+        self.photo = countPhoto
+        self.countVideo = countVideo
+        self.countNotes = countNotes
+        self.countGroups = countGroups
 
 def ParseUserFriends(Id, deep):
     if deep < max_deep:
@@ -35,11 +41,39 @@ def ParseUserFriends(Id, deep):
 
 def GetUserInfoById(Id):
     try:
-        user = vk_api.users.get(user_ids=[1,2,3], fields='bdate, counters', v = 5.101)
-        datestr = user[0]['bdate']
-        datetime_object = datetime.strptime(datestr, '%d.%m.%Y')
-        return 
-    except:
+        userInfo = vk_api.users.get(user_id=Id, fields='bdate, counters', v = 5.101)
+        
+        try:
+            datestr = userInfo[0]['bdate']
+            now = datetime.now()
+            birthday = datetime.strptime(datestr, '%d.%m.%Y')
+            age = now.year - birthday.year
+        except:
+            age = 0
+
+        try:
+            photos = userInfo[0]['counters']['photos']
+        except:
+            photos = 0
+
+        try:
+            videos = userInfo[0]['counters']['videos']
+        except:
+            videos = 0
+
+        try:
+            notes = userInfo[0]['counters']['notes']
+        except:
+            notes = 0
+        try:
+            groups = userInfo[0]['counters']['groups']
+        except:
+            groups = 0
+
+        return User(Id, age, photos, videos, notes, groups)
+
+    except Exception as er:
+        print(er)
         return
 
 
@@ -48,10 +82,16 @@ vk_api = vk.API(session)
 max_deep = 2
 startId = 69504867
 parsedUsers = []
+usersInfo = []
 
 ParseUserFriends(startId, 0)
 
-GetUserInfoById(startId)
+for user in parsedUsers:
+    us = GetUserInfoById(user.id)
+    if us is not None:
+        usersInfo.append(us)
 
-print(parsedUsers)
+
+with open('data.json', 'w') as outfile:
+    json.dump(usersInfo, outfile, default=lambda x: x.__dict__)
 
