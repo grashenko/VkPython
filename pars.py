@@ -9,6 +9,7 @@ class ParseItem:
     self.deep = deep
     self.id = id
     self.parentId = parentId
+    self.childrens = []
 
 class User:
     def toJSON(self):
@@ -23,21 +24,37 @@ class User:
         self.countNotes = countNotes
         self.countGroups = countGroups
 
-def ParseUserFriends(Id, deep):
+def ParseUserFriends(Id, deep, item):
     if deep < max_deep:
         try:
             deep += 1
             friends = vk_api.friends.get(user_id=Id, order='hints', v = 5.101)
             mapItems = map(lambda fr: ParseItem(fr, deep, Id) , friends['items'])
             parseItems = list(mapItems)
+            item.childrens = parseItems
         except:
             return
-
         parsedUsers.extend(parseItems)
-        for item in parseItems:
-            ParseUserFriends(item.id, item.deep)
+        for item in item.childrens:
+            ParseUserFriends(item.id, item.deep, item)
     else:
         return
+
+
+def PrintTree(item):
+    try:
+        if item.deep == 0:
+            tree.write('---' + str(item.id)+'\n')
+        if item.deep == 1:
+            tree.write('           ----------------'+ str(item.id)+'\n')
+        if item.deep == 2:
+            tree.write('                             -------------------------------------'+ str(item.id)+'\n')
+        
+        for child in item.childrens:
+            PrintTree(child)
+    except:
+        return
+
 
 def GetUserInfoById(Id):
     try:
@@ -84,7 +101,13 @@ startId = 69504867
 parsedUsers = []
 usersInfo = []
 
-ParseUserFriends(startId, 0)
+root = ParseItem(startId,0,0)
+
+ParseUserFriends(startId, 0, root)
+
+tree = open("Tree.txt","w") 
+PrintTree(root)
+tree.close()
 
 for user in parsedUsers:
     us = GetUserInfoById(user.id)
